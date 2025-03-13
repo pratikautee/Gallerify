@@ -1,10 +1,15 @@
 let currentIndex = 0;
 let images = [];
+let isZoomed = false;
 
 function getOverlayComponent() {
   const overlay = document.createElement("dialog");
   overlay.id = "gallerify-overlay";
-  overlay.style = `display: flex;flex-direction: row; margin: 0; justify-content: center; align-items: center; min-width: 100% !important; min-height: 100% !important; background-color: rgba(0, 0, 0, 0.85); justify-content: center; align-items: center;`;
+  overlay.style = `
+    display: flex; flex-direction: row; margin: 0; justify-content: center;
+    align-items: center; min-width: 100% !important; min-height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.85);
+  `;
 
   const prev = document.createElement("p");
   prev.id = "gallerify-prev";
@@ -20,11 +25,10 @@ function getOverlayComponent() {
   overlayContent.id = "gallerify-overlay-content";
   overlayContent.style.display = "flex";
   overlayContent.style.flexDirection = "column";
-  overlayContent.style.justifyContent = "space-evenly";
+  overlayContent.style.justifyContent = "center";
   overlayContent.style.alignItems = "center";
   overlayContent.style.width = "100%";
   overlayContent.style.height = "100%";
-
   overlay.appendChild(overlayContent);
 
   const fullscreenButton = document.createElement("button");
@@ -96,7 +100,6 @@ function clearImage() {
   const currentImageElement = document.getElementById(
     `currentImage${currentIndex}`
   );
-
   if (currentImageElement) {
     currentImageElement.remove();
   }
@@ -109,12 +112,43 @@ async function gallerify() {
     currentImage.setAttribute("id", `currentImage${currentIndex}`);
     currentImage.style.width = "auto";
     currentImage.style.maxHeight = "90vh";
-    const closeButton = document.getElementById("gallerify-close");
-    closeButton.innerText = `[Close] (${currentIndex + 1}/${images.length})`;
+    currentImage.style.cursor = "zoom-in";
+    currentImage.style.transition = "transform 0.3s ease";
+    currentImage.style.transformOrigin = "center";
+
     const overlayContent = document.getElementById("gallerify-overlay-content");
     overlayContent.prepend(currentImage);
+
     const overlay = document.getElementById("gallerify-overlay");
     overlay.showModal();
+
+    currentImage.addEventListener("click", (event) => {
+      if (!isZoomed) {
+        isZoomed = true;
+        currentImage.style.transform = "scale(2)";
+        currentImage.style.cursor = "grab";
+        overlayContent.style.cursor = "zoom-out";
+      } else {
+        isZoomed = false;
+        currentImage.style.transform = "scale(1)";
+        currentImage.style.cursor = "zoom-in";
+        currentImage.style.transformOrigin = "center";
+        overlayContent.style.cursor = "default";
+      }
+    });
+
+    currentImage.addEventListener("mousemove", (event) => {
+      if (isZoomed) {
+        const { left, top, width, height } =
+          currentImage.getBoundingClientRect();
+        const x = ((event.clientX - left) / width) * 100;
+        const y = ((event.clientY - top) / height) * 100;
+        currentImage.style.transformOrigin = `${x}% ${y}%`;
+      }
+    });
+
+    const closeButton = document.getElementById("gallerify-close");
+    closeButton.innerText = `[Close] (${currentIndex + 1}/${images.length})`;
   } else {
     closeGallery();
   }
@@ -122,13 +156,13 @@ async function gallerify() {
 
 async function prevImage() {
   clearImage();
-  currentIndex--;
+  currentIndex = (currentIndex - 1 + images.length) % images.length;
   await gallerify();
 }
 
 async function nextImage() {
   clearImage();
-  currentIndex++;
+  currentIndex = (currentIndex + 1) % images.length;
   await gallerify();
 }
 
@@ -137,6 +171,7 @@ async function closeGallery() {
   const overlay = document.getElementById("gallerify-overlay");
   overlay.close();
   overlay.remove();
+  isZoomed = false;
   currentIndex = 0;
   window.removeEventListener("keydown", () => {});
 }
